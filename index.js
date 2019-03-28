@@ -97,33 +97,36 @@ module.exports = homebridge => {
 				tvEvent.removeListener('POWER_ON', handler);
 				if (!handler.activated) {
 					callback(null, false);
-					this.log.info('TV is off');
+					this.log.info('TV is off');					
 				}
 			}, 1000);
 		}
 
 		setPowerStatus(value, callback) {
-			this.log.info(`Turning TV ${value ? 'on' : 'fff'}`);
+			this.log.info(`Turning TV ${value ? 'on' : 'off'}`);
 			if (value === this.tvService.getCharacteristic(Characteristic.Active).value) {
 				callback();
 				this.log.info(`TV is already ${value ? 'on' : 'off'}`);
 				return;
 			}
-			const handler = () => {
-				handler.activated = true;
-				callback();
-				this.log.info(`TV is turned ${value ? 'on' : 'off'}`);
-			};
-			tvEvent.once(value ? 'POWER_ON' : 'POWER_OFF', handler);
-			setTimeout(() => {
-				tvEvent.removeListener(value ? 'POWER_ON' : 'POWER_OFF', handler);
-				if (!handler.activated) {
-					callback(`TV is not turning ${value ? 'on' : 'off'}`);
-					this.log.info(`TV is not turning ${value ? 'on' : 'off'}`);
-				}
-			}, 30000);
+
+			// const handler = () => {
+			// 	handler.activated = true;
+			// 	callback();
+			// 	this.log.info(`TV is turned ${value ? 'on' : 'off'}`);
+			// };						
+			// tvEvent.once(value ? 'POWER_ON' : 'POWER_OFF', handler);
+			// setTimeout(() => {
+			// 	tvEvent.removeListener(value ? 'POWER_ON' : 'POWER_OFF', handler);
+			// 	if (!handler.activated) {
+			// 		callback(`TV is not turning ${value ? 'on' : 'off'}`);
+			// 		this.log.info(`TV is not turning ${value ? 'on' : 'off'}`);
+			// 	}
+			// }, 30000);
+
 			// Send on or off signal
 			cecClient.stdin.write(value ? 'tx 10:04\n' : 'tx 10:36\n');
+			callback();
 		}
 
 		setInput(value, callback) {
@@ -133,7 +136,7 @@ module.exports = homebridge => {
 				tvEvent.once('POWER_ON', () => { this.setInput(value, callback); });
 				return;
 			}
-			// const handler = () => {
+			//const handler = () => {
 			// 	handler.activated = true;
 			// 	callback();
 			// 	this.log.info(`TV is switched to HDMI${value}`);
