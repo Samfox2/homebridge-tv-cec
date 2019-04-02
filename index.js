@@ -30,11 +30,28 @@ module.exports = homebridge => {
 				this.tvService.addLinkedService(input);
 				return input;
 			});
+			
 
-			this.informationService = new Service.AccessoryInformation();
+            this.tvSpeakerService = new Service.TelevisionSpeaker(this.config.name + ' Volume')
+			this.tvSpeakerService.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
+			this.tvSpeakerService.setCharacteristic(Characteristic.VolumeControlType, Characteristic.VolumeControlType.ABSOLUTE)
+			
+			this.tvSpeakerService.getCharacteristic(Characteristic.VolumeSelector) //increase/decrease volume
+			.on('set', this.setVolumeSelector.bind(this));
+
+			// this.tvSpeakerService
+			// 	.getCharacteristic(Characteristic.Mute)
+			// 	.on('get', this.getMuteState.bind(this))
+			// 	.on('set', this.setMuteState.bind(this));
+            this.tvService.addLinkedService(this.tvSpeakerService);
+
+			this.informationService = new Service.AccessoryInformation()
+				.setCharacteristic(Characteristic.Manufacturer, "Toshiba")
+				.setCharacteristic(Characteristic.Model, "Regza");
 
 			cecClient.stdout.on('data', data => {
 				const traffic = data.toString();
+				console.log(traffic);
 				if (traffic.indexOf('<< 10:47:43:45:43') !== -1) {
 					cecClient.stdin.write('tx 10:47:52:50:69\n'); // Set OSD String to 'RPi'
 				}
@@ -65,7 +82,7 @@ module.exports = homebridge => {
 
 			tvEvent.on('POWER_OFF', () => {
 				if (!justSwitched) {
-					this.log.debug('CEC: Power off');
+					this.log.debug('CEC: Power on');
 					this.tvService.getCharacteristic(Characteristic.Active).updateValue(false);
 					justSwitched = true;
 					setTimeout(() => {
@@ -78,10 +95,35 @@ module.exports = homebridge => {
 				this.log.debug(`CEC: Input switched to HDMI${port}`);
 				this.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(parseInt(port));
 			});
+
+
+			tvEvent.on('VOLUME_UP', () => {
+				if (!justSwitched) {
+					this.log.debug('CEC: Volume up');
+					this.tvService.getCharacteristic(Characteristic.Volume).updateValue(true);
+					justSwitched = true;
+					setTimeout(() => {
+						justSwitched = false;
+					}, 5000);
+				}
+			});
+
+			tvEvent.on('VOLUME_DOWN', () => {
+				if (!justSwitched) {
+					this.log.debug('CEC: Volume down');
+					this.tvService.getCharacteristic(Characteristic.Volume).updateValue(false);
+					justSwitched = true;
+					setTimeout(() => {
+						justSwitched = false;
+					}, 5000);
+				}
+			});
+
+
 		}
 
 		getServices() {
-			return [ this.informationService, this.tvService, ...this.inputs ];
+			return [ this.informationService, this.tvSpeakerService, this.tvService,  ...this.inputs ];
 		}
 
 		getPowerStatus(callback) {
@@ -123,11 +165,34 @@ module.exports = homebridge => {
 			// 		this.log.info(`TV is not turning ${value ? 'on' : 'off'}`);
 			// 	}
 			// }, 30000);
-
+		
 			// Send on or off signal
 			cecClient.stdin.write(value ? 'tx 10:04\n' : 'tx 10:36\n');
 			callback();
 		}
+
+		setVolumeSelector(key, callback) {
+			this.log.info(`Setting TV volume ${key ? 'up' : 'down'}`);
+		
+			// Send volume increase or decrease  signal
+			switch (key) {
+				case Characteristic.VolumeSelector.INCREMENT: //Volume up
+				    this.log.info(`TV volume increasing`);
+					cecClient.stdin.write('volup 0\n')
+					break;
+				case Characteristic.VolumeSelector.DECREMENT: //Volume down
+					this.log.info(`TV volume decreasing`);
+					cecClient.stdin.write('voldown 0\n')
+					break;
+			}
+			callback();
+		}
+
+		// setMuteState(state, callback) {
+		// 	this.log.info(`Setting TV volume ${state ? 'muted' : 'unmuted'}`);
+        //TODO
+		// 	callback();
+		// }
 
 		setInput(value, callback) {
 			this.log.info(`Switching to HDMI${value}`);
