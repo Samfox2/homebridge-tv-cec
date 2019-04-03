@@ -46,8 +46,9 @@ module.exports = homebridge => {
             this.tvService.addLinkedService(this.tvSpeakerService);
 
 			this.informationService = new Service.AccessoryInformation()
-				.setCharacteristic(Characteristic.Manufacturer, "Toshiba")
-				.setCharacteristic(Characteristic.Model, "Regza");
+				.setCharacteristic(Characteristic.Manufacturer, this.config.manufacturer || 'N/A')
+				.setCharacteristic(Characteristic.Model, this.config.model || 'TV')
+			        .setCharacteristic(Characteristic.SerialNumber, this.config.serial || 'N/A');
 
 			cecClient.stdout.on('data', data => {
 				const traffic = data.toString();
